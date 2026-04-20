@@ -12,15 +12,14 @@
     *, *::before, *::after { box-sizing: border-box; }
     html {
       scroll-behavior: smooth;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
     body {
-      overflow-x: hidden;
-      max-width: 100vw;
+      overflow-x: clip;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
-    #root { overflow-x: hidden; }
+    #root { overflow-x: clip; }
     details > summary { user-select: none; }
     details > summary::-webkit-details-marker { display: none; }
   </style>
@@ -200,7 +199,6 @@
     function Hero() {
       return (
         <section id="top" className="relative overflow-hidden bg-white scroll-mt-20">
-          <BlueprintGrid opacity={0.06} />
           <Container className="py-16 lg:py-24 grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-zinc-900 leading-tight">
@@ -268,7 +266,6 @@
       ];
       return (
         <section id="services" className="relative py-16 bg-white scroll-mt-20">
-          <BlueprintGrid opacity={0.05} />
           <Container>
             <SectionTitle sub="Выполняю планировочные решения квартир и домов, проектирую мебель, сопровождаю реализацию. Все решения — с учётом норм для согласования.">
               Услуги
@@ -279,7 +276,7 @@
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {cards.map(c => (
-                <div key={c.title} className={`rounded-3xl border border-zinc-300 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}>
+                <div key={c.title} className="rounded-3xl border border-zinc-300 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                   <div className="flex items-baseline justify-between gap-4 mb-4">
                     <h3 className="text-lg font-semibold text-zinc-900">{c.title}</h3>
                     <div className="text-zinc-900 font-semibold whitespace-nowrap">{c.price}</div>
@@ -332,14 +329,13 @@
       ];
       return (
         <section id="pricing" className="relative py-16 bg-zinc-50 scroll-mt-20">
-          <BlueprintGrid opacity={0.05} />
           <Container>
             <SectionTitle sub="Итоговая смета формируется после обмеров и утверждения ТЗ.">
               Цены и состав
             </SectionTitle>
             <div className="grid md:grid-cols-3 gap-6">
               {tiers.map(t => (
-                <div key={t.name} className={`rounded-3xl border border-zinc-300 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg `}>
+                <div key={t.name} className="rounded-3xl border border-zinc-300 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                   <div className="flex items-start justify-between mb-1 gap-2">
                     <div className="text-lg font-semibold text-zinc-900">{t.name}</div>
                     {t.popular && <span className="text-xs bg-zinc-900 text-white rounded-full px-2.5 py-1 shrink-0">Популярный</span>}
@@ -448,7 +444,6 @@
       const [selected, setSelected] = useState(null);
       return (
         <section id="templates" className="relative py-16 bg-zinc-50 scroll-mt-20">
-          <BlueprintGrid opacity={0.05} />
           <Container>
             <SectionTitle sub="Готовые проекты с возможностью корректировок — значительно дешевле разработки с нуля. Скажите, что хотите изменить — адаптируем под ваш запрос.">
               Шаблоны проектов
@@ -610,7 +605,6 @@
       ];
       return (
         <section id="process" className="relative py-16 bg-zinc-50 scroll-mt-20">
-          <BlueprintGrid opacity={0.05} />
           <Container>
             <SectionTitle sub="Прозрачный процесс работы на каждом этапе.">
               Процесс работы
@@ -686,7 +680,6 @@
       ];
       return (
         <section id="faq" className="relative py-16 bg-zinc-50 scroll-mt-20">
-          <BlueprintGrid opacity={0.05} />
           <Container>
             <SectionTitle>FAQ</SectionTitle>
             <div className="grid gap-3 max-w-3xl">

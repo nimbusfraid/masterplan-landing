@@ -1,562 +1,951 @@
 <!doctype html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Любовь Очирова — проектировщик</title>
-    <!-- Tailwind + React (CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <style>body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}</style>
-  </head>
-  <body class="bg-zinc-400">
-    <div id="root"></div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Любовь Очирова — проектировщик</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html {
+      scroll-behavior: smooth;
+      overflow-x: hidden;
+    }
+    body {
+      overflow-x: hidden;
+      max-width: 100vw;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    }
+    #root { overflow-x: hidden; }
+    details > summary { user-select: none; }
+    details > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="bg-white">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
 
-    <!-- Весь сайт как React-компонент -->
-    <script type="text/babel">
-      const { useState, useMemo } = React;
+    /* ── Webhooks ──────────────────────────────────────────────────────── */
+    // Для форм заявок и заказов шаблонов
+    const WEBHOOK_FORMS = 'https://masterplan03.ru/webhook/5046a2e3-91ae-4e3d-b4f6-73950ef6d5df/webhook';
+    // TODO: замените на webhook-триггер из workflow ассистента (workflow uP7zV0n3jC1MEBJC)
+    // Откройте workflow в N8N → добавьте Webhook-триггер → скопируйте URL сюда
+    const WEBHOOK_CHAT = 'ЗАМЕНИТЕ_НА_WEBHOOK_АССИСТЕНТА';
 
-      function LandingLyubov() {
-        return (
-          <div className="relative min-h-screen text-zinc-800 bg-zinc-400 scroll-smooth">
-            <GlobalStyles />
-            <BackdropTextures />
-            <TopNav />
-            <Hero />
-            <TrustBar />
-            <Services />
-            <Pricing />
-            <Calculators />
-            <Portfolio />
-            <Process />
-            <Supervision />
-            <FAQ />
-            <Contacts />
-            <Footer />
+    /* ── Данные шаблонов ───────────────────────────────────────────────── */
+    // Добавляйте/редактируйте шаблоны здесь
+    const TEMPLATES = [
+      { id: 1, title: 'Студия', area: 28, style: 'Минимализм', price: 12000 },
+      { id: 2, title: '1-комнатная квартира', area: 42, style: 'Скандинавский', price: 18000 },
+      { id: 3, title: '2-комнатная квартира', area: 58, style: 'Современный', price: 22000 },
+      { id: 4, title: '3-комнатная квартира', area: 82, style: 'Неоклассика', price: 28000 },
+      { id: 5, title: 'Частный дом (1 этаж)', area: 95, style: 'Современный', price: 35000 },
+      { id: 6, title: 'Кухня-гостиная', area: 24, style: 'Лофт', price: 9500 },
+    ];
+
+    /* ── Утилиты ───────────────────────────────────────────────────────── */
+    function pretty(n) {
+      return Number.isFinite(n) ? new Intl.NumberFormat('ru-RU').format(n) : '—';
+    }
+
+    async function postWebhook(url, data) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      try { return await res.json(); } catch { return {}; }
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────── */
+    function Container({ children, className = '' }) {
+      return (
+        <div className={`mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function SectionTitle({ children, sub }) {
+      return (
+        <div className="mb-8">
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">{children}</h2>
+          {sub && <p className="mt-2 text-base text-zinc-600 max-w-2xl leading-relaxed">{sub}</p>}
+        </div>
+      );
+    }
+
+    /* ── Blueprint backdrop (без overflow) ────────────────────────────── */
+    function BlueprintGrid({ opacity = 0.07 }) {
+      return (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true" style={{ opacity }}>
+          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+              <pattern id="bp" width="6" height="6" patternUnits="userSpaceOnUse">
+                <path d="M6 0H0V6" fill="none" stroke="#94a3b8" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#bp)" />
+            <g stroke="#a1a1aa" strokeWidth="0.3" fill="none">
+              <rect x="10" y="20" width="22" height="14" />
+              <rect x="40" y="40" width="18" height="10" />
+              <line x1="62" y1="20" x2="90" y2="20" />
+              <line x1="62" y1="24" x2="90" y2="24" />
+            </g>
+          </svg>
+        </div>
+      );
+    }
+
+    /* ── Фото-плейсхолдер ─────────────────────────────────────────────── */
+    // Чтобы добавить реальное фото — замените этот компонент на:
+    // <img src="путь/к/фото.jpg" className="..." alt="..." />
+    // или добавьте style={{ backgroundImage: 'url(фото.jpg)', backgroundSize: 'cover' }}
+    function PhotoPh({ className = '', label = 'Фото' }) {
+      return (
+        <div
+          className={`flex flex-col items-center justify-center gap-2 text-zinc-400 bg-gradient-to-br from-zinc-50 to-slate-100 border-2 border-dashed border-zinc-200 ${className}`}
+        >
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path d="m21 15-5-5L5 21" />
+          </svg>
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+      );
+    }
+
+    /* ── Карточки ─────────────────────────────────────────────────────── */
+    function InfoCard({ title, sub, right, children }) {
+      return (
+        <div className="rounded-3xl border bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+          <div className="flex items-baseline justify-between gap-4 mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
+              {sub && <div className="text-sm text-zinc-500 mt-0.5">{sub}</div>}
+            </div>
+            {right && <div className="text-zinc-900 font-semibold whitespace-nowrap">{right}</div>}
           </div>
-        );
-      }
+          {children}
+        </div>
+      );
+    }
 
-      function GlobalStyles() { return <style>{"html { scroll-behavior: smooth; }"}</style>; }
-
-      // Текстуры задника: сетка чертежа + силуэты города + кран
-      function BackdropTextures() {
-        return (
-          <div className="pointer-events-none fixed inset-0 -z-20" aria-hidden="true">
-            <svg className="absolute inset-0 w-full h-full opacity-10" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs><pattern id="backdrop-grid" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M6 0H0V6" fill="none" stroke="#cbd5e1" strokeWidth="0.35" /></pattern></defs>
-              <rect width="100%" height="100%" fill="url(#backdrop-grid)" />
-            </svg>
-            <svg className="absolute bottom-0 right-0 w-[70%] max-w-none opacity-20" viewBox="0 0 1200 300" preserveAspectRatio="none">
-              <path d="M0 300h1200V160h-60v40h-80v-80h-60v120h-80v-60h-60v80h-80V90h-80v210h-80v-90h-60v120H0z" fill="#94a3b8" />
-            </svg>
-            <svg className="absolute top-0 left-0 w-[60%] max-w-none opacity-15" viewBox="0 0 800 200" preserveAspectRatio="none">
-              <g stroke="#a1a1aa" strokeWidth="2" fill="none">
-                <line x1="40" y1="180" x2="40" y2="60" />
-                <line x1="40" y1="60" x2="300" y2="60" />
-                <line x1="300" y1="60" x2="340" y2="80" />
-                <line x1="300" y1="60" x2="340" y2="40" />
-                <line x1="180" y1="60" x2="200" y2="120" />
-              </g>
-            </svg>
-          </div>
-        );
-      }
-
-      function Container({ children, className = "" }) {
-        return <div className={`mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 ${className}`}>{children}</div>;
-      }
-
-      function TopNav() {
-        const [open, setOpen] = useState(false);
-        const navItems = [
-          { href: "#services", label: "Услуги" },
-          { href: "#pricing", label: "Цены" },
-          { href: "#portfolio", label: "Портфолио" },
-          { href: "#process", label: "Процесс" },
-          { href: "#supervision", label: "Авторский надзор" },
-          { href: "#faq", label: "FAQ" },
-          { href: "#contacts", label: "Контакты" },
-        ];
-        return (
-          <header className="sticky top-0 z-50 backdrop-blur bg-white/70 border-b border-zinc-200">
-            <Container className="flex items-center justify-between py-3">
-              <a href="#top" className="flex items-center gap-2">
-                <div className="size-8 rounded-xl bg-zinc-900 text-white grid place-items-center font-semibold">L</div>
-                <div className="leading-none">
-                  <div className="font-semibold">Любовь Очирова</div>
-                  <div className="text-xs text-zinc-500">проектировщик</div>
-                </div>
-              </a>
-              <nav className="hidden md:flex items-center gap-6 text-sm">
-                {navItems.map((n) => (
-                  <a key={n.href} href={n.href} className="hover:text-zinc-900 text-zinc-600">{n.label}</a>
+    /* ── TopNav ────────────────────────────────────────────────────────── */
+    function TopNav() {
+      const [open, setOpen] = useState(false);
+      const nav = [
+        { href: '#services', label: 'Услуги' },
+        { href: '#pricing', label: 'Цены' },
+        { href: '#templates', label: 'Шаблоны' },
+        { href: '#portfolio', label: 'Портфолио' },
+        { href: '#process', label: 'Процесс' },
+        { href: '#supervision', label: 'Надзор' },
+        { href: '#faq', label: 'FAQ' },
+        { href: '#contacts', label: 'Контакты' },
+      ];
+      return (
+        <header className="sticky top-0 z-50 bg-white/85 backdrop-blur border-b border-zinc-200">
+          <Container className="flex items-center justify-between py-3">
+            <a href="#top" className="flex items-center gap-2.5 shrink-0">
+              <div className="size-9 rounded-xl bg-zinc-900 text-white grid place-items-center font-bold text-lg">L</div>
+              <div className="leading-none">
+                <div className="font-semibold text-zinc-900">Любовь Очирова</div>
+                <div className="text-xs text-zinc-500">проектировщик</div>
+              </div>
+            </a>
+            <nav className="hidden lg:flex items-center gap-5 text-sm">
+              {nav.map(n => (
+                <a key={n.href} href={n.href} className="text-zinc-600 hover:text-zinc-900 transition-colors font-medium">{n.label}</a>
+              ))}
+              <a href="#contacts" className="rounded-2xl bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:bg-zinc-800 transition-colors">Связаться</a>
+            </nav>
+            <button
+              onClick={() => setOpen(!open)}
+              className="lg:hidden rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium"
+            >
+              {open ? '✕' : 'Меню'}
+            </button>
+          </Container>
+          {open && (
+            <div className="lg:hidden border-t bg-white">
+              <Container className="py-4 grid gap-1">
+                {nav.map(n => (
+                  <a
+                    key={n.href} href={n.href}
+                    className="py-2.5 px-3 rounded-xl text-zinc-700 hover:bg-zinc-50 text-sm font-medium"
+                    onClick={() => setOpen(false)}
+                  >{n.label}</a>
                 ))}
-                <a href="#contacts" className="inline-flex items-center rounded-2xl border px-3 py-1.5 text-sm bg-zinc-900 text-white hover:bg-zinc-800">Связаться</a>
-              </nav>
-              <button onClick={() => setOpen(!open)} className="md:hidden rounded-xl border px-3 py-2 text-sm">Меню</button>
-            </Container>
-            {open && (
-              <div className="md:hidden border-t bg-white">
-                <Container className="py-3 grid gap-3">
-                  {navItems.map((n) => (
-                    <a key={n.href} href={n.href} className="py-2 text-sm text-zinc-700" onClick={() => setOpen(false)}>{n.label}</a>
+                <a
+                  href="#contacts"
+                  className="mt-2 rounded-2xl bg-zinc-900 text-white px-4 py-2.5 text-sm font-medium text-center"
+                  onClick={() => setOpen(false)}
+                >Связаться</a>
+              </Container>
+            </div>
+          )}
+        </header>
+      );
+    }
+
+    /* ── Hero ──────────────────────────────────────────────────────────── */
+    function Hero() {
+      return (
+        <section id="top" className="relative overflow-hidden bg-white scroll-mt-20">
+          <BlueprintGrid opacity={0.06} />
+          <Container className="py-16 lg:py-24 grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-zinc-900 leading-tight">
+                Проектирование квартир, домов и мебели
+              </h1>
+              <p className="mt-3 text-xl text-zinc-500 font-medium">
+                Спокойная эстетика, продуманная функциональность
+              </p>
+              <p className="mt-5 text-base text-zinc-700 max-w-prose leading-relaxed">
+                Здравствуйте! Я — <strong className="text-zinc-900">Любовь Очирова</strong>. Помогаю создать продуманное и гармоничное пространство: планировки квартир и домов, проектирование мебели, 3D-модели и развёртки, подбор освещения и материалов. Веду проект от обмеров до авторского надзора.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a href="#pricing" className="rounded-2xl bg-zinc-900 text-white px-5 py-3 text-sm font-semibold hover:bg-zinc-800 transition-colors">Смотреть цены</a>
+                <a href="#templates" className="rounded-2xl border border-zinc-300 px-5 py-3 text-sm font-semibold hover:border-zinc-500 transition-colors">Шаблоны проектов</a>
+                <a href="#calculators" className="rounded-2xl border border-zinc-300 px-5 py-3 text-sm font-semibold hover:border-zinc-500 transition-colors">Быстрый расчёт</a>
+              </div>
+              <p className="mt-5 text-sm text-zinc-500">Улан-Удэ и ближайшие районы · удалённо по РФ и миру</p>
+            </div>
+            <div className="relative">
+              {/* ФОТО ПРОЕКТИРОВЩИКА: замените PhotoPh на <img src="photo.jpg" className="aspect-[3/4] rounded-3xl w-full object-cover" alt="Любовь Очирова" /> */}
+              <PhotoPh className="aspect-[3/4] rounded-3xl w-full" label="Фото проектировщика" />
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── TrustBar ──────────────────────────────────────────────────────── */
+    function TrustBar() {
+      const stats = [
+        { val: '3+ года', label: 'Опыт проектирования' },
+        { val: '40+ / год', label: 'Проектов в работе' },
+        { val: '70%', label: 'Предоплата после ТЗ' },
+        { val: 'Онлайн/офлайн', label: 'Формат работы' },
+      ];
+      return (
+        <section className="border-y bg-zinc-50">
+          <Container className="py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+            {stats.map(s => (
+              <div key={s.val}>
+                <div className="text-2xl font-semibold text-zinc-900">{s.val}</div>
+                <div className="text-sm text-zinc-600 mt-0.5 font-medium">{s.label}</div>
+              </div>
+            ))}
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── Services ──────────────────────────────────────────────────────── */
+    function Services() {
+      const cards = [
+        {
+          title: 'Базовый', price: '600 ₽/м²',
+          bullets: ['Обмерный план', 'Демонтаж / монтаж перегородок', 'Расстановка мебели с размерами'],
+        },
+        {
+          title: 'Стандарт', price: '1 200 ₽/м²', accent: true,
+          bullets: ['Всё из Базового', 'Электрика: розетки / выключатели / высоты', 'Освещение и привязки', 'Вентиляция / коммуникации', 'План напольных покрытий', '3D-вид и развёртки'],
+        },
+        {
+          title: 'Стандарт + Дизайн', price: '1 990 ₽/м²',
+          bullets: ['Всё из Стандарта', 'Дизайн-концепция (коллажи, материалы)'],
+        },
+      ];
+      return (
+        <section id="services" className="relative py-16 bg-white scroll-mt-20">
+          <BlueprintGrid opacity={0.05} />
+          <Container>
+            <SectionTitle sub="Выполняю планировочные решения квартир и домов, проектирую мебель, сопровождаю реализацию. Все решения — с учётом норм для согласования.">
+              Услуги
+            </SectionTitle>
+            {/* ФОТО СЕКЦИИ: замените PhotoPh на img или div с background-image */}
+            <div className="mb-8 overflow-hidden rounded-3xl">
+              <PhotoPh className="h-48 w-full rounded-3xl" label="Фото / рендер проекта" />
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {cards.map(c => (
+                <div key={c.title} className={`rounded-3xl border bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${c.accent ? 'ring-1 ring-zinc-300' : ''}`}>
+                  <div className="flex items-baseline justify-between gap-4 mb-4">
+                    <h3 className="text-lg font-semibold text-zinc-900">{c.title}</h3>
+                    <div className="text-zinc-900 font-semibold whitespace-nowrap">{c.price}</div>
+                  </div>
+                  <ul className="grid gap-2.5">
+                    {c.bullets.map((b, i) => (
+                      <li key={i} className="flex items-start gap-2 text-base text-zinc-700">
+                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-zinc-900"></span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 grid md:grid-cols-2 gap-6">
+              <InfoCard title="Частный дом" sub="Три пакета">
+                <ul className="grid gap-2 text-base text-zinc-700">
+                  <li>Базовый — 1 000 ₽/м²</li>
+                  <li>Стандарт — 1 500 ₽/м²</li>
+                  <li>Стандарт + Дизайн — 2 200 ₽/м²</li>
+                </ul>
+              </InfoCard>
+              <InfoCard title="Проект мебели" sub="шкафы, кухни, гардеробные" right="2 000 ₽/пог. м">
+                <p className="text-base text-zinc-700">Обмер зоны, спецификации материалов / фурнитуры, план открывания; при необходимости — схемы электрики / подсветки.</p>
+              </InfoCard>
+            </div>
+            <div className="mt-6">
+              <InfoCard title="А-ля-карт чертежи" sub="по площади" right="100–500 ₽/м²">
+                <ul className="grid gap-2 text-base text-zinc-700">
+                  <li>Стены / перегородки — 100 ₽/м²</li>
+                  <li>Мебель / техника / сантехника — 100 ₽/м²</li>
+                  <li>Розетки / выключатели / слаботочка — 200 ₽/м²</li>
+                  <li>Освещение — 100 ₽/м²</li>
+                  <li>3D-модель — 500 ₽/м² (≤100 м²) или 400 ₽/м² (&gt;100 м²)</li>
+                </ul>
+              </InfoCard>
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── Pricing ───────────────────────────────────────────────────────── */
+    function Pricing() {
+      const tiers = [
+        { name: 'Базовый', price: '600 ₽/м²', features: ['Обмерный план', 'Демонтаж / монтаж', 'Мебель с размерами'] },
+        { name: 'Стандарт', price: '1 200 ₽/м²', popular: true, features: ['Всё из Базового', 'Электрика (высоты/привязки)', 'Освещение', 'Вентиляция/коммуникации', 'План полов', '3D и развёртки'] },
+        { name: 'Стандарт + Дизайн', price: '1 990 ₽/м²', features: ['Всё из Стандарта', 'Дизайн-концепция (коллажи)'] },
+      ];
+      return (
+        <section id="pricing" className="relative py-16 bg-zinc-50 scroll-mt-20">
+          <BlueprintGrid opacity={0.05} />
+          <Container>
+            <SectionTitle sub="Итоговая смета формируется после обмеров и утверждения ТЗ.">
+              Цены и состав
+            </SectionTitle>
+            <div className="grid md:grid-cols-3 gap-6">
+              {tiers.map(t => (
+                <div key={t.name} className={`rounded-3xl border bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${t.popular ? 'ring-1 ring-zinc-300' : ''}`}>
+                  <div className="flex items-start justify-between mb-1 gap-2">
+                    <div className="text-lg font-semibold text-zinc-900">{t.name}</div>
+                    {t.popular && <span className="text-xs bg-zinc-900 text-white rounded-full px-2.5 py-1 shrink-0">Популярный</span>}
+                  </div>
+                  <div className="text-xl font-semibold text-zinc-900 mb-4">{t.price}</div>
+                  <ul className="grid gap-2.5 mb-5">
+                    {t.features.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-base text-zinc-700">
+                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-zinc-900"></span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <a href="#calculators" className="block text-center rounded-2xl border border-zinc-300 px-4 py-2.5 text-sm font-semibold hover:border-zinc-500 transition-colors">Рассчитать стоимость</a>
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── Calculators ───────────────────────────────────────────────────── */
+    function FormField({ label, ...props }) {
+      return (
+        <label className="grid gap-1.5 text-sm">
+          <span className="font-semibold text-zinc-700">{label}</span>
+          <input {...props} className="rounded-xl border border-zinc-200 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-zinc-900" />
+        </label>
+      );
+    }
+
+    function FormSelect({ label, children, ...props }) {
+      return (
+        <label className="grid gap-1.5 text-sm">
+          <span className="font-semibold text-zinc-700">{label}</span>
+          <select {...props} className="rounded-xl border border-zinc-200 px-3 py-2.5 text-base bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900">
+            {children}
+          </select>
+        </label>
+      );
+    }
+
+    function Calculators() {
+      return (
+        <section id="calculators" className="relative py-16 bg-white scroll-mt-20">
+          <Container>
+            <SectionTitle sub="Черновая оценка. Точная стоимость — после обмеров и ТЗ.">
+              Быстрый расчёт
+            </SectionTitle>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <CalcApartment />
+              <CalcFurniture />
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    function CalcApartment() {
+      const [area, setArea] = useState(54);
+      const [type, setType] = useState('apartment');
+      const [pkg, setPkg] = useState('standard');
+      const prices = { apartment: { basic: 600, standard: 1200, design: 1990 }, house: { basic: 1000, standard: 1500, design: 2200 } };
+      const pricePer = prices[type][pkg];
+      const total = area * pricePer;
+      return (
+        <InfoCard title="Квартира / Дом" sub="пакеты по м²" right={`${pretty(pricePer)} ₽/м²`}>
+          <div className="grid sm:grid-cols-3 gap-3 mb-4">
+            <FormField label="Площадь, м²" type="number" min={1} value={area} onChange={e => setArea(+e.target.value)} />
+            <FormSelect label="Тип" value={type} onChange={e => setType(e.target.value)}>
+              <option value="apartment">Квартира</option>
+              <option value="house">Дом</option>
+            </FormSelect>
+            <FormSelect label="Пакет" value={pkg} onChange={e => setPkg(e.target.value)}>
+              <option value="basic">Базовый</option>
+              <option value="standard">Стандарт</option>
+              <option value="design">+ Дизайн</option>
+            </FormSelect>
+          </div>
+          <div className="text-base text-zinc-700">Ориентировочно: <strong className="text-zinc-900 text-xl">{pretty(total)} ₽</strong></div>
+          <p className="mt-1.5 text-sm text-zinc-500">Точная стоимость — после обмеров и ТЗ.</p>
+        </InfoCard>
+      );
+    }
+
+    function CalcFurniture() {
+      const [run, setRun] = useState(5);
+      const total = run * 2000;
+      return (
+        <InfoCard title="Проект мебели" sub="по погонным метрам" right="2 000 ₽/пог. м">
+          <div className="grid sm:grid-cols-2 gap-3 mb-4">
+            <FormField label="Длина, пог. м" type="number" min={1} value={run} onChange={e => setRun(+e.target.value)} />
+            <div className="grid gap-1.5 text-sm">
+              <span className="font-semibold text-zinc-700">Итого ориентировочно</span>
+              <div className="rounded-xl border border-zinc-200 px-3 py-2.5 bg-zinc-50 text-xl font-semibold text-zinc-900">{pretty(total)} ₽</div>
+            </div>
+          </div>
+          <p className="text-sm text-zinc-500">Включены обмеры, спецификация материалов / фурнитуры, план открывания; при необходимости — электрика / подсветка.</p>
+        </InfoCard>
+      );
+    }
+
+    /* ── Template Shop ─────────────────────────────────────────────────── */
+    function TemplateShop() {
+      const [selected, setSelected] = useState(null);
+      return (
+        <section id="templates" className="relative py-16 bg-zinc-50 scroll-mt-20">
+          <BlueprintGrid opacity={0.05} />
+          <Container>
+            <SectionTitle sub="Готовые проекты с возможностью корректировок — значительно дешевле разработки с нуля. Скажите, что хотите изменить — адаптируем под ваш запрос.">
+              Шаблоны проектов
+            </SectionTitle>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {TEMPLATES.map(t => (
+                <TemplateCard key={t.id} template={t} onOrder={() => setSelected(t)} />
+              ))}
+            </div>
+          </Container>
+          {selected && <OrderModal template={selected} onClose={() => setSelected(null)} />}
+        </section>
+      );
+    }
+
+    function TemplateCard({ template, onOrder }) {
+      const { title, area, style, price } = template;
+      return (
+        <div className="rounded-3xl border bg-white shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md flex flex-col">
+          {/* ФОТО ШАБЛОНА: замените PhotoPh на <img src="..." className="h-44 w-full object-cover" /> */}
+          <PhotoPh className="h-44 w-full shrink-0" label="Рендер / чертёж" />
+          <div className="p-5 flex flex-col flex-1">
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <h3 className="font-semibold text-zinc-900 text-base">{title}</h3>
+              <span className="text-xs shrink-0 bg-zinc-100 text-zinc-600 rounded-full px-2.5 py-1 font-medium">{style}</span>
+            </div>
+            <div className="text-sm text-zinc-500 mb-4 font-medium">{area} м²</div>
+            <div className="flex items-center justify-between gap-3 mt-auto">
+              <div>
+                <div className="text-xl font-semibold text-zinc-900">{pretty(price)} ₽</div>
+                <div className="text-xs text-zinc-500 mt-0.5">шаблон с корректировками</div>
+              </div>
+              <button
+                onClick={onOrder}
+                className="rounded-2xl bg-zinc-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-zinc-800 transition-colors shrink-0"
+              >
+                Заказать
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Order Modal ───────────────────────────────────────────────────── */
+    function OrderModal({ template, onClose }) {
+      const [name, setName] = useState('');
+      const [phone, setPhone] = useState('');
+      const [comment, setComment] = useState('');
+      const [status, setStatus] = useState('idle');
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        setStatus('loading');
+        try {
+          await postWebhook(WEBHOOK_FORMS, {
+            type: 'template_order',
+            template_id: template.id,
+            template_title: template.title,
+            template_area: template.area,
+            template_price: template.price,
+            name, phone, comment,
+          });
+          setStatus('success');
+        } catch {
+          setStatus('error');
+        }
+      }
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={e => e.target === e.currentTarget && onClose()}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 relative">
+            <button onClick={onClose} className="absolute top-4 right-4 size-8 grid place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 text-lg">✕</button>
+            <h3 className="text-lg font-semibold text-zinc-900 mb-1">Заказать шаблон</h3>
+            <p className="text-sm text-zinc-600 mb-5">
+              <strong>{template.title}</strong> · {template.area} м² · {pretty(template.price)} ₽
+            </p>
+            {status === 'success' ? (
+              <div className="text-center py-6">
+                <div className="size-14 rounded-full bg-zinc-100 grid place-items-center text-2xl mx-auto mb-4">✓</div>
+                <p className="font-semibold text-zinc-900">Заявка отправлена!</p>
+                <p className="text-sm text-zinc-600 mt-1">Любовь свяжется с вами в ближайшее время.</p>
+                <button onClick={onClose} className="mt-5 rounded-2xl bg-zinc-900 text-white px-5 py-2.5 text-sm font-semibold">Закрыть</button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="grid gap-4">
+                <FormField label="Ваше имя" type="text" required placeholder="Иван Иванов" value={name} onChange={e => setName(e.target.value)} />
+                <FormField label="Телефон" type="tel" required placeholder="+7 (___) ___-__-__" value={phone} onChange={e => setPhone(e.target.value)} />
+                <label className="grid gap-1.5 text-sm">
+                  <span className="font-semibold text-zinc-700">Что хотите изменить в шаблоне?</span>
+                  <textarea
+                    rows={3}
+                    placeholder="Например: другая расстановка мебели, добавить кладовку..."
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    className="rounded-xl border border-zinc-200 px-3 py-2.5 text-base resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </label>
+                {status === 'error' && (
+                  <p className="text-sm text-red-600">Ошибка отправки. Пожалуйста, позвоните напрямую: <a href="tel:89149855100" className="underline">8-914-9-855-100</a></p>
+                )}
+                <button
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="rounded-2xl bg-zinc-900 text-white px-5 py-3 text-sm font-semibold disabled:opacity-60 transition-opacity"
+                >
+                  {status === 'loading' ? 'Отправляем...' : 'Отправить заявку'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Portfolio ─────────────────────────────────────────────────────── */
+    function Portfolio() {
+      const items = Array.from({ length: 8 }).map((_, i) => ({
+        id: i + 1,
+        title: `Проект #${i + 1}`,
+        tag: i % 2 === 0 ? 'Квартира' : 'Дом',
+      }));
+      return (
+        <section id="portfolio" className="relative py-16 bg-white scroll-mt-20">
+          <Container>
+            <SectionTitle sub="По запросу покажу план электрики, освещения, обмерный план, расстановку мебели, 3D-виды с развёртками.">
+              Портфолио
+            </SectionTitle>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {items.map(it => (
+                <div key={it.id} className="group overflow-hidden rounded-3xl border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                  <div className="relative aspect-[4/3]">
+                    {/* ФОТО ПОРТФОЛИО: замените PhotoPh на <img src="..." className="absolute inset-0 w-full h-full object-cover" /> */}
+                    <PhotoPh className="absolute inset-0 rounded-none" label={it.tag} />
+                    <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/60 to-transparent">
+                      <div className="text-xs text-white/80 font-medium">{it.tag}</div>
+                      <div className="text-sm font-semibold text-white">{it.title}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── Process ───────────────────────────────────────────────────────── */
+    function Process() {
+      const steps = [
+        { t: 'Обмеры', d: 'Замеряю помещение/участок, фиксирую высоты, проёмы, коммуникации.' },
+        { t: 'Планировочные решения', d: 'Разрабатываю несколько вариантов, согласуем оптимальный.' },
+        { t: 'Чертежи', d: 'Электрика, освещение, вентиляция, полы, потолок, ниши и закладные.' },
+        { t: '3D и развёртки', d: 'Проверяю эргономику, открывания, проходы.' },
+        { t: 'Дизайн-концепция', d: 'Для пакета Стандарт + Дизайн: коллажи, материалы, цвета.' },
+      ];
+      return (
+        <section id="process" className="relative py-16 bg-zinc-50 scroll-mt-20">
+          <BlueprintGrid opacity={0.05} />
+          <Container>
+            <SectionTitle sub="Прозрачный процесс работы на каждом этапе.">
+              Процесс работы
+            </SectionTitle>
+            {/* ФОТО СЕКЦИИ */}
+            <div className="mb-8 overflow-hidden rounded-3xl">
+              <PhotoPh className="h-44 w-full rounded-3xl" label="Фото рабочего процесса" />
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {steps.map((s, i) => (
+                <div key={i} className="bg-white rounded-3xl border p-6 shadow-sm">
+                  <div className="size-9 rounded-full bg-zinc-900 text-white grid place-items-center text-sm font-bold mb-3">{i + 1}</div>
+                  <div className="font-semibold text-zinc-900 mb-1.5">{s.t}</div>
+                  <div className="text-base text-zinc-700 leading-relaxed">{s.d}</div>
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── Supervision ───────────────────────────────────────────────────── */
+    function Supervision() {
+      return (
+        <section id="supervision" className="relative py-16 bg-white scroll-mt-20">
+          <Container>
+            <SectionTitle>Авторский надзор</SectionTitle>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <InfoCard title="Формат" right="30 000 ₽/мес.">
+                <ul className="grid gap-2.5">
+                  {[
+                    'Два выезда в неделю (до 2 часов), будни 9:00–18:00',
+                    'Приёмка заказных позиций, ответы подрядчикам',
+                    'Неиспользованные выезды/часы не переносятся',
+                    'Если объект вне Улан-Удэ — удалённо (видеоотчёты бригад)',
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-base text-zinc-700">
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-zinc-900"></span>
+                      {item}
+                    </li>
                   ))}
-                </Container>
-              </div>
-            )}
-          </header>
-        );
-      }
-
-      function Hero() {
-        return (
-          <section id="top" className="relative overflow-hidden bg-white scroll-mt-24">
-            <HeroBackdrop />
-            <Silhouettes type="blueprint" opacity={0.10} />
-            <div className="pointer-events-none absolute inset-0 -z-10">
-              <div className="absolute inset-x-0 top-0 h-28 bg-zinc-400/20" />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-zinc-400/20" />
+                </ul>
+              </InfoCard>
+              <InfoCard title="Что входит">
+                <ul className="grid gap-2.5">
+                  {[
+                    'Контроль соответствия работ проектной документации',
+                    'Корректировки в рабочих чертежах при необходимости',
+                    'Взаимодействие с поставщиками и подрядчиками',
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-base text-zinc-700">
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-zinc-900"></span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </InfoCard>
             </div>
-            <Container className="py-16 lg:py-24 grid lg:grid-cols-2 gap-10 items-center">
-              <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight">
-                  Проектирование квартир, домов и мебели
-                  <span className="block text-zinc-500 text-xl sm:text-2xl mt-3">Спокойная эстетика, продуманная функциональность</span>
-                </h1>
-                <p className="mt-6 text-zinc-600 max-w-prose">
-                  Здравствуйте! Я — <b>Любовь Очирова</b>. Помогаю клиентам создать продуманное и гармоничное пространство: выполняю планировки квартир и домов, проектирую мебель, разрабатываю 3D-модели и развёртки, подбираю освещение и материалы. Беру на себя организацию всех этапов — от обмеров до авторского надзора, чтобы результат полностью соответствовал Вашему запросу.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <a href="#pricing" className="rounded-2xl bg-zinc-900 text-white px-5 py-3 text-sm hover:bg-zinc-800">Смотреть цены</a>
-                  <a href="#portfolio" className="rounded-2xl border px-5 py-3 text-sm">Примеры работ</a>
-                  <a href="#calculators" className="rounded-2xl border px-5 py-3 text-sm">Быстрый расчёт</a>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── FAQ ───────────────────────────────────────────────────────────── */
+    function FAQ() {
+      const qa = [
+        { q: 'Можно ли работать дистанционно?', a: 'Да. Провожу осмотр по видеосвязи/записи, обмеры организуем через местных специалистов; затраты на замеры вычту из стоимости проекта. Надзор — удалённо по видеоотчётам.' },
+        { q: 'В какие часы вы на связи?', a: 'Будни 9:00–18:00 (по договорённости — в выходные). Встречи на объекте или на нейтральной территории.' },
+        { q: 'Если вопрос вне вашей тематики?', a: 'Тактично уточню запрос. Если он не про услуги/чертежи — честно сообщу и предложу релевантное решение.' },
+        { q: 'Нужно только узаконивание перепланировки', a: 'Рекомендую партнёров: АКБ «Азимут», Алексей Убонов, тел. 8-924-554-94-36.' },
+        { q: 'Какой формат оплаты?', a: 'Предоплата 70% после обмеров и согласования ТЗ. Остаток — по факту готовности проекта. Работаю с физ. и юр. лицами: счета, договоры, акты.' },
+      ];
+      return (
+        <section id="faq" className="relative py-16 bg-zinc-50 scroll-mt-20">
+          <BlueprintGrid opacity={0.05} />
+          <Container>
+            <SectionTitle>FAQ</SectionTitle>
+            <div className="grid gap-3 max-w-3xl">
+              {qa.map((x, i) => (
+                <details key={i} className="group rounded-2xl border bg-white p-5">
+                  <summary className="list-none flex items-center justify-between gap-4 cursor-pointer">
+                    <span className="font-semibold text-zinc-900 text-base">{x.q}</span>
+                    <span className="text-zinc-400 transition-transform duration-200 group-open:rotate-45 text-xl shrink-0">＋</span>
+                  </summary>
+                  <div className="mt-3 text-base text-zinc-700 leading-relaxed">{x.a}</div>
+                </details>
+              ))}
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── Contacts ──────────────────────────────────────────────────────── */
+    function Contacts() {
+      const [name, setName] = useState('');
+      const [phone, setPhone] = useState('');
+      const [msg, setMsg] = useState('');
+      const [status, setStatus] = useState('idle');
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        setStatus('loading');
+        try {
+          await postWebhook(WEBHOOK_FORMS, { type: 'contact', name, phone, message: msg });
+          setStatus('success');
+        } catch {
+          setStatus('error');
+        }
+      }
+
+      return (
+        <section id="contacts" className="relative py-16 bg-white scroll-mt-20">
+          <Container>
+            <SectionTitle sub="Свяжитесь любым удобным способом или оставьте заявку — отвечу в рабочее время.">
+              Контакты
+            </SectionTitle>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <InfoCard title="Реквизиты и контакты">
+                <dl className="grid gap-2.5 text-base">
+                  <div className="flex gap-2"><dt className="text-zinc-500 shrink-0">Исполнитель:</dt><dd className="font-semibold text-zinc-900">Любовь Очирова</dd></div>
+                  <div className="flex gap-2"><dt className="text-zinc-500 shrink-0">Адрес:</dt><dd className="text-zinc-700">Респ. Бурятия, г. Улан-Удэ, пр-кт Строителей, 40</dd></div>
+                  <div className="flex gap-2"><dt className="text-zinc-500 shrink-0">Телефон:</dt><dd><a href="tel:89149855100" className="text-zinc-900 font-semibold underline underline-offset-2">8-914-9-855-100</a></dd></div>
+                  <div className="flex gap-2"><dt className="text-zinc-500 shrink-0">Часы:</dt><dd className="text-zinc-700">Будни 9:00–18:00</dd></div>
+                  <div className="flex gap-2"><dt className="text-zinc-500 shrink-0">Формат:</dt><dd className="text-zinc-700">Онлайн/офлайн, РФ и мир</dd></div>
+                  <div className="flex gap-2"><dt className="text-zinc-500 shrink-0">Оплата:</dt><dd className="text-zinc-700">Физ. и юр. лица — счета, договоры, акты</dd></div>
+                </dl>
+                <div className="mt-5 flex gap-3 flex-wrap">
+                  <a href="#pricing" className="rounded-2xl border border-zinc-300 px-4 py-2.5 text-sm font-semibold hover:border-zinc-500 transition-colors">Прайс</a>
+                  <a href="#calculators" className="rounded-2xl bg-zinc-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-zinc-800 transition-colors">Рассчитать стоимость</a>
                 </div>
-                <p className="mt-4 text-xs text-zinc-500">Работаю онлайн/офлайн, Улан-Удэ и ближайшие районы; удалённо — по РФ и миру.</p>
-              </div>
-              <div className="relative">
-                <div className="aspect-[4/3] rounded-3xl bg-gradient-to-br from-zinc-50 to-zinc-100 border grid place-items-center shadow-sm">
-                  <div className="p-8 text-center">
-                    <div className="text-sm uppercase tracking-widest text-zinc-500">Архитектурные ноты</div>
-                    <h3 className="mt-2 text-xl font-medium">Планы • Привязки • 3D • Развёртки</h3>
-                    <p className="mt-3 text-zinc-600">Ненавязчивая графика и «пастельная» палитра — как на вашем будущем проекте.</p>
+              </InfoCard>
+
+              <div className="rounded-3xl border bg-white p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-zinc-900 mb-5">Оставить заявку</h3>
+                {status === 'success' ? (
+                  <div className="text-center py-6">
+                    <div className="size-14 rounded-full bg-zinc-100 grid place-items-center text-2xl mx-auto mb-4">✓</div>
+                    <p className="font-semibold text-zinc-900">Заявка отправлена!</p>
+                    <p className="text-sm text-zinc-600 mt-1">Отвечу в ближайшее рабочее время.</p>
                   </div>
-                </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="grid gap-4">
+                    <FormField label="Имя" type="text" required placeholder="Иван Иванов" value={name} onChange={e => setName(e.target.value)} />
+                    <FormField label="Телефон" type="tel" required placeholder="+7 (___) ___-__-__" value={phone} onChange={e => setPhone(e.target.value)} />
+                    <label className="grid gap-1.5 text-sm">
+                      <span className="font-semibold text-zinc-700">Сообщение</span>
+                      <textarea
+                        rows={3}
+                        placeholder="Расскажите о вашем проекте..."
+                        value={msg}
+                        onChange={e => setMsg(e.target.value)}
+                        className="rounded-xl border border-zinc-200 px-3 py-2.5 text-base resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                      />
+                    </label>
+                    {status === 'error' && (
+                      <p className="text-sm text-red-600">Ошибка отправки. Позвоните напрямую: <a href="tel:89149855100" className="underline">8-914-9-855-100</a></p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={status === 'loading'}
+                      className="rounded-2xl bg-zinc-900 text-white px-5 py-3 text-sm font-semibold disabled:opacity-60 transition-opacity"
+                    >
+                      {status === 'loading' ? 'Отправляем...' : 'Отправить заявку'}
+                    </button>
+                  </form>
+                )}
               </div>
-            </Container>
-          </section>
-        );
+            </div>
+          </Container>
+        </section>
+      );
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    function Footer() {
+      return (
+        <footer className="border-t bg-zinc-50 py-8">
+          <Container className="flex flex-col sm:flex-row justify-between gap-4 text-sm text-zinc-500">
+            <div>© {new Date().getFullYear()} Любовь Очирова — проектировщик. Все права защищены.</div>
+            <div className="flex gap-5">
+              <a href="#services" className="hover:text-zinc-700 transition-colors font-medium">Услуги</a>
+              <a href="#templates" className="hover:text-zinc-700 transition-colors font-medium">Шаблоны</a>
+              <a href="#faq" className="hover:text-zinc-700 transition-colors font-medium">FAQ</a>
+              <a href="#contacts" className="hover:text-zinc-700 transition-colors font-medium">Контакты</a>
+            </div>
+          </Container>
+        </footer>
+      );
+    }
+
+    /* ── Chat Widget ───────────────────────────────────────────────────── */
+    function ChatWidget() {
+      const [open, setOpen] = useState(false);
+      const [messages, setMessages] = useState([
+        { role: 'assistant', text: 'Здравствуйте! Я ассистент Любови Очировой. Готов ответить на вопросы об услугах, ценах и процессе работы.' }
+      ]);
+      const [input, setInput] = useState('');
+      const [loading, setLoading] = useState(false);
+      const bottomRef = useRef(null);
+
+      useEffect(() => {
+        if (open && bottomRef.current) {
+          bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [messages, open]);
+
+      async function sendMessage(e) {
+        e.preventDefault();
+        if (!input.trim() || loading) return;
+        const userMsg = input.trim();
+        setInput('');
+        setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+        setLoading(true);
+        try {
+          const data = await postWebhook(WEBHOOK_CHAT, {
+            type: 'chat',
+            message: userMsg,
+            history: messages.map(m => ({ role: m.role, content: m.text })),
+          });
+          const reply = data.response || data.output || data.message || data.text || data.answer || 'Получен ответ от ассистента.';
+          setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+        } catch {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            text: 'Не удалось получить ответ. Попробуйте позже или позвоните: 8-914-9-855-100'
+          }]);
+        }
+        setLoading(false);
       }
 
-      // Подложка с чертёжной сеткой в Hero
-      function HeroBackdrop() {
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'>
-          <defs><pattern id='grid' width='40' height='40' patternUnits='userSpaceOnUse'><path d='M40 0H0V40' fill='none' stroke='#d4d4d8' stroke-width='1'/></pattern></defs>
-          <rect width='1200' height='800' fill='url(#grid)'/>
-          <g stroke='#bdbdc2' stroke-width='2' fill='none' opacity='0.7'>
-            <rect x='120' y='220' width='320' height='220'/>
-            <rect x='500' y='320' width='260' height='160'/>
-            <circle cx='880' cy='340' r='60'/>
-            <line x1='760' y1='220' x2='1080' y2='220'/>
-            <line x1='760' y1='260' x2='1080' y2='260'/>
-          </g></svg>`;
-        const HERO_BG = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-        return (
-          <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
-            <div className="absolute inset-0 bg-[image:var(--hero)] bg-cover bg-center opacity-25 blur-[1px]" style={{"--hero": `url(${HERO_BG})`}} />
-            <div className="absolute inset-0 bg-white/60" />
-          </div>
-        );
-      }
-
-      // Силуэты/сетки для разделов
-      function Silhouettes({ type = "city", opacity = 0.14 }) {
-        return (
-          <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
-            {type === "city" && (
-              <svg className="absolute bottom-0 left-0 w-[160%] max-w-none opacity-[var(--op)]" style={{"--op": opacity}} viewBox="0 0 1200 200" preserveAspectRatio="none">
-                <path d="M0 180h80v-40h40v-20h40v60h40v-80h40v100h40v-60h40v20h40v-40h40v100h40v-60h40v-40h40v100h40v-80h40v40h40v40h440v20H0z" fill="#94a3b8" />
+      return (
+        <>
+          {open && (
+            <div
+              className="fixed bottom-20 right-4 sm:right-6 z-50 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border flex flex-col overflow-hidden"
+              style={{ maxHeight: '480px' }}
+            >
+              <div className="flex items-center justify-between px-4 py-3 bg-zinc-900 text-white shrink-0">
+                <div>
+                  <div className="font-semibold text-sm">Ассистент</div>
+                  <div className="text-xs text-zinc-400">Ответим на все вопросы</div>
+                </div>
+                <button onClick={() => setOpen(false)} className="size-7 grid place-items-center rounded-full hover:bg-white/10 text-sm">✕</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 grid gap-3 content-start" style={{ minHeight: 0 }}>
+                {messages.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                      m.role === 'user'
+                        ? 'bg-zinc-900 text-white rounded-br-sm'
+                        : 'bg-zinc-100 text-zinc-800 rounded-bl-sm'
+                    }`}>
+                      {m.text}
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex justify-start">
+                    <div className="bg-zinc-100 rounded-2xl rounded-bl-sm px-3.5 py-3">
+                      <div className="flex gap-1 items-center">
+                        {[0, 150, 300].map(d => (
+                          <div key={d} className="size-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={bottomRef} />
+              </div>
+              <form onSubmit={sendMessage} className="border-t flex gap-2 p-3 shrink-0">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder="Напишите сообщение..."
+                  className="flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || loading}
+                  className="rounded-xl bg-zinc-900 text-white px-3 py-2 text-sm font-semibold disabled:opacity-40 transition-opacity"
+                >
+                  →
+                </button>
+              </form>
+            </div>
+          )}
+          <button
+            onClick={() => setOpen(!open)}
+            className="fixed bottom-4 right-4 sm:right-6 z-50 size-14 rounded-full bg-zinc-900 text-white shadow-lg flex items-center justify-center hover:bg-zinc-800 transition-all duration-200 hover:scale-105 active:scale-95"
+            aria-label="Открыть чат с ассистентом"
+          >
+            {open ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
             )}
-            {type === "blueprint" && (
-              <svg className="absolute inset-0 opacity-[var(--op)]" style={{"--op": opacity}} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <defs><pattern id="grid-bp" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M6 0H0V6" fill="none" stroke="#d1d5db" strokeWidth="0.5" /></pattern></defs>
-                <rect width="100%" height="100%" fill="url(#grid-bp)" />
-                <g stroke="#c4c4cc" strokeWidth="0.35" fill="none">
-                  <rect x="10" y="20" width="22" height="14" />
-                  <rect x="40" y="40" width="18" height="10" />
-                  <line x1="62" y1="20" x2="90" y2="20" />
-                  <line x1="62" y1="24" x2="90" y2="24" />
-                </g>
-              </svg>
-            )}
-          </div>
-        );
-      }
+          </button>
+        </>
+      );
+    }
 
-      function TrustBar() {
-        return (
-          <section className="relative border-y bg-gradient-to-b from-zinc-100 to-slate-100 scroll-mt-24">
-            <Silhouettes type="city" opacity={0.10} />
-            <div className="pointer-events-none absolute inset-0 -z-10">
-              <div className="absolute inset-x-0 top-0 h-28 bg-zinc-400/20" />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-zinc-400/20" />
-            </div>
-            <Container className="py-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-zinc-600 relative">
-              <div><div className="text-2xl font-semibold">3+ лет</div>Опыт проектирования</div>
-              <div><div className="text-2xl font-semibold">40+ / год</div>Проектов в работе</div>
-              <div><div className="text-2xl font-semibold">70% предоплата</div>После обмеров и ТЗ</div>
-              <div><div className="text-2xl font-semibold">Онлайн/офлайн</div>Формат работы</div>
-            </Container>
-          </section>
-        );
-      }
+    /* ── Root ──────────────────────────────────────────────────────────── */
+    function App() {
+      return (
+        <div className="relative min-h-screen text-zinc-800 bg-white" style={{ fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif" }}>
+          <TopNav />
+          <Hero />
+          <TrustBar />
+          <Services />
+          <Pricing />
+          <Calculators />
+          <TemplateShop />
+          <Portfolio />
+          <Process />
+          <Supervision />
+          <FAQ />
+          <Contacts />
+          <Footer />
+          <ChatWidget />
+        </div>
+      );
+    }
 
-      function Services() {
-        const cards = [
-          { title: "Проект квартиры — Базовый", price: "600 ₽/м²", bullets: ["Обмерный план","Демонтаж/монтаж перегородок","Расстановка мебели с размерами"] },
-          { title: "Проект квартиры — Стандарт", price: "1200 ₽/м²", bullets: ["Всё из Базового","Электрика: розетки/выключатели/высоты","Освещение и привязки","Вентиляция/коммуникации","План напольных покрытий","3D-вид и развёртки"], accent: true },
-          { title: "Проект квартиры — Стандарт + Дизайн", price: "1990 ₽/м²", bullets: ["Всё из Стандарта","Дизайн-концепция (коллажи, материалы)"] },
-        ];
-        return (
-          <section id="services" className="relative py-16 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 scroll-mt-24">
-            <Silhouettes type="blueprint" opacity={0.10} />
-            <div className="pointer-events-none absolute inset-0 -z-10">
-              <div className="absolute inset-x-0 top-0 h-28 bg-zinc-400/20" />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-zinc-400/20" />
-            </div>
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">Услуги</h2>
-              <p className="mt-2 text-zinc-600 max-w-prose">Выполняю планировочные решения квартир и домов, проектирую мебель, а также сопровождаю реализацию проектом авторского надзора. Все решения — с учётом норм и правил для согласования.</p>
-              <div className="mt-8 grid md:grid-cols-3 gap-6">
-                {cards.map((c) => (
-                  <div key={c.title} className={`rounded-3xl border shadow-sm p-6 bg-white ${c.accent ? "ring-1 ring-zinc-200" : ""} transition-transform duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-lg`}>
-                    <div className="flex items-baseline justify-between gap-4">
-                      <h3 className="text-lg font-medium">{c.title}</h3>
-                      <div className="text-zinc-900 font-semibold">{c.price}</div>
-                    </div>
-                    <ul className="mt-4 grid gap-2 text-sm text-zinc-700">
-                      {c.bullets.map((b, i) => (<li key={i} className="flex items-start gap-2"><span className="mt-1 size-1.5 rounded-full bg-zinc-900"></span>{b}</li>))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 grid md:grid-cols-2 gap-6">
-                <Card title="Частный дом" subtitle="Три пакета" right="1000/1500/2200 ₽/м²">
-                  <ul className="text-sm text-zinc-700 grid gap-1">
-                    <li>Базовый — 1000 ₽/м²</li>
-                    <li>Стандарт — 1500 ₽/м²</li>
-                    <li>Стандарт + Дизайн — 2200 ₽/м²</li>
-                  </ul>
-                </Card>
-                <Card title="Проект мебели" subtitle="шкафы, кухни, гардеробные" right="2000 ₽/пог. м">
-                  <p className="text-sm text-zinc-700">Обмер зоны, спецификации материалов/фурнитуры, план открывания; при необходимости — схемы электрики/подсветки.</p>
-                </Card>
-              </div>
-
-              <div className="mt-6">
-                <Card title="А-ля-карт чертежи" subtitle="по площади" right="100–500 ₽/м²">
-                  <ul className="text-sm text-zinc-700 grid gap-1">
-                    <li>Стены/перегородки — 100 ₽/м²</li>
-                    <li>Мебель/техника/сантехника — 100 ₽/м²</li>
-                    <li>Розетки/выключатели/слаботочка — 200 ₽/м²</li>
-                    <li>Освещение — 100 ₽/м²</li>
-                    <li>3D-модель — 500 ₽/м² (≤100 м²) или 400 ₽/м² (&gt;100 м²)</li>
-                  </ul>
-                </Card>
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function Card({ title, subtitle, right, children }) {
-        return (
-          <div className="rounded-3xl border shadow-sm bg-white p-6 transition-transform duration-300 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:shadow-lg">
-            <div className="flex items-baseline justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-medium">{title}</h3>
-                {subtitle && <div className="text-sm text-zinc-500">{subtitle}</div>}
-              </div>
-              {right && <div className="text-zinc-900 font-semibold whitespace-nowrap">{right}</div>}
-            </div>
-            <div className="mt-4">{children}</div>
-          </div>
-        );
-      }
-
-      function Pricing() {
-        return (
-          <section id="pricing" className="relative py-8 bg-white scroll-mt-24">
-            <Silhouettes type="city" opacity={0.08} />
-            <div className="pointer-events-none absolute inset-0 -z-10">
-              <div className="absolute inset-x-0 top-0 h-28 bg-zinc-400/20" />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-zinc-400/20" />
-            </div>
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">Цены и состав</h2>
-              <p className="mt-2 text-zinc-600 max-w-prose">Выберите пакет под вашу задачу. Итоговая смета формируется после обмеров и утверждения ТЗ.</p>
-              <div className="mt-6 grid md:grid-cols-3 gap-6">
-                <Tier name="Базовый" price="600 ₽/м²" features={["Обмерный план","Демонтаж/монтаж","Мебель с размерами"]} cta="#calculators"/>
-                <Tier name="Стандарт" price="1200 ₽/м²" popular features={["Всё из Базового","Электрика (высоты/привязки)","Освещение","Вентиляция/коммуникации","План полов","3D и развёртки"]} cta="#calculators"/>
-                <Tier name="Стандарт + Дизайн" price="1990 ₽/м²" features={["Всё из Стандарта","Дизайн-концепция (коллажи)"]} cta="#calculators"/>
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function Tier({ name, price, features, popular, cta }) {
-        return (
-          <div className={`rounded-3xl border shadow-sm bg-white p-6 ${popular ? "ring-1 ring-zinc-300" : ""} transition-transform duration-300 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:shadow-lg`}>
-            <div className="flex items-baseline justify-between">
-              <div><div className="text-lg font-semibold">{name}</div><div className="text-sm text-zinc-500">Квартира</div></div>
-              <div className="text-xl font-semibold">{price}</div>
-            </div>
-            <ul className="mt-4 grid gap-2 text-sm text-zinc-700">
-              {features.map((f, i) => (<li key={i} className="flex items-start gap-2"><span className="mt-1 size-1.5 rounded-full bg-zinc-900"></span>{f}</li>))}
-            </ul>
-            <a href={cta} className="mt-4 inline-flex rounded-2xl border px-4 py-2 text-sm">Рассчитать стоимость</a>
-          </div>
-        );
-      }
-
-      function Calculators() {
-        return (
-          <section id="calculators" className="relative py-16 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 scroll-mt-24">
-            <Silhouettes type="blueprint" opacity={0.10} />
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">Быстрый расчёт</h2>
-              <p className="mt-2 text-zinc-600 max-w-prose">Черновая оценка. Итог после обмеров. Без двойного учёта позиций.</p>
-              <div className="mt-6 grid lg:grid-cols-2 gap-6">
-                <CalcApartment />
-                <CalcFurniture />
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function Field({ label, ...props }) {
-        return (<label className="grid gap-1 text-sm"><span className="text-zinc-600">{label}</span><input {...props} className="rounded-xl border px-3 py-2" /></label>);
-      }
-      function Select({ label, children, ...props }) {
-        return (<label className="grid gap-1 text-sm"><span className="text-zinc-600">{label}</span><select {...props} className="rounded-xl border px-3 py-2 bg-white">{children}</select></label>);
-      }
-      function pretty(n){ return Number.isFinite(n) ? new Intl.NumberFormat("ru-RU").format(n) : "—"; }
-
-      function CalcApartment() {
-        const [area, setArea] = useState(54);
-        const [type, setType] = useState("apartment");
-        const [pkg, setPkg] = useState("standard");
-        const pricePer = React.useMemo(() => {
-          const map = { apartment: { basic: 600, standard: 1200, design: 1990 }, house: { basic: 1000, standard: 1500, design: 2200 } };
-          return map[type][pkg];
-        }, [type, pkg]);
-        const total = area * pricePer;
-        return (
-          <Card title="Квартира/Дом" subtitle="пакеты по м²" right={`${pretty(pricePer)} ₽/м²`}>
-            <div className="grid sm:grid-cols-3 gap-3">
-              <Field label="Площадь, м²" type="number" min={1} value={area} onChange={(e)=>setArea(+e.target.value)} />
-              <Select label="Тип объекта" value={type} onChange={(e)=>setType(e.target.value)}><option value="apartment">Квартира</option><option value="house">Дом</option></Select>
-              <Select label="Пакет" value={pkg} onChange={(e)=>setPkg(e.target.value)}><option value="basic">Базовый</option><option value="standard">Стандарт</option><option value="design">Стандарт + Дизайн</option></Select>
-            </div>
-            <div className="mt-4 text-sm text-zinc-700">Итого ориентировочно: <b className="text-zinc-900 text-lg">{pretty(total)} ₽</b></div>
-            <p className="mt-2 text-xs text-zinc-500">Оценка предварительная. Точная стоимость — после обмеров и ТЗ.</p>
-          </Card>
-        );
-      }
-
-      function CalcFurniture() {
-        const [run, setRun] = useState(5);
-        const pricePer = 2000;
-        const total = run * pricePer;
-        return (
-          <Card title="Проект мебели" subtitle="по погонным метрам" right={`${pretty(pricePer)} ₽/пог. м`}>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Длина, пог. м" type="number" min={1} value={run} onChange={(e)=>setRun(+e.target.value)} />
-              <div className="grid gap-1 text-sm"><span className="text-zinc-600">Итого ориентировочно</span><div className="rounded-xl border px-3 py-2 bg-zinc-50">{pretty(total)} ₽</div></div>
-            </div>
-            <p className="mt-2 text-xs text-zinc-500">Включены обмеры зоны, спецификация материалов/фурнитуры, план открывания; при необходимости — электрика/подсветка.</p>
-          </Card>
-        );
-      }
-
-      function Portfolio() {
-        const items = Array.from({ length: 8 }).map((_, i) => ({ id: i + 1, title: `Проект #${i + 1}`, tag: i % 2 === 0 ? "Квартира" : "Дом" }));
-        return (
-          <section id="portfolio" className="relative py-16 bg-white scroll-mt-24">
-            <Silhouettes type="city" opacity={0.08} />
-            <div className="pointer-events-none absolute inset-0 -z-10">
-              <div className="absolute inset-x-0 top-0 h-28 bg-zinc-400/20" />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-zinc-400/20" />
-            </div>
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">Портфолио и примеры чертежей</h2>
-              <p className="mt-2 text-zinc-600 max-w-prose">По запросу покажу: план электрики, освещения, обмерный план, расстановку мебели, 3D-виды с развёртками. Напишите: «покажите план электрики» — и пришлю примеры.</p>
-              <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {items.map((it) => (
-                  <div key={it.id} className="group relative overflow-hidden rounded-3xl bg-zinc-100 border aspect-[4/3] transition-transform duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-lg">
-                    <div className="absolute inset-0 flex items=end p-4 bg-gradient-to-t from-black/40 to-transparent">
-                      <div className="text-white"><div className="text-sm text-white/80">{it.tag}</div><div className="font-medium">{it.title}</div></div>
-                    </div>
-                    <svg className="absolute inset-0 opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <g stroke="#000" strokeWidth="0.2"><line x1="0" y1="20" x2="100" y2="20" /><line x1="10" y1="0" x2="10" y2="100" /><rect x="20" y="30" width="60" height="40" fill="none" /></g>
-                    </svg>
-                  </div>
-                ))}
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function Step({ n, title, text }) {
-        return (
-          <div className="relative pl-10">
-            <div className="absolute left-0 top-0 size-8 rounded-full bg-zinc-900 text-white grid place-items-center text-sm font-medium">{n}</div>
-            <div className="font-medium">{title}</div>
-            <div className="text-sm text-zinc-700">{text}</div>
-          </div>
-        );
-      }
-
-      function Process() {
-        const steps = [
-          { t: "Обмеры", d: "Замеряю помещение/участок, фиксирую высоты, проёмы, коммуникации." },
-          { t: "Планировочные решения", d: "Разрабатываю несколько вариантов; согласуем оптимальный." },
-          { t: "Чертежи", d: "Электрика (высоты/привязки), освещение, вентиляция/коммуникации, полы/плинтуса, при необходимости — потолок/ниши/закладные." },
-          { t: "3D и развёртки", d: "Проверяю эргономику, открывания, проходы." },
-          { t: "Дизайн-концепция", d: "Для пакета Стандарт + Дизайн: коллажи, материалы, цвета." },
-        ];
-        return (
-          <section id="process" className="relative py-16 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 scroll-mt-24">
-            <Silhouettes type="blueprint" opacity={0.10} />
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">Процесс</h2>
-              <div className="mt-6 grid sm:grid-cols-2 gap-6">
-                {steps.map((s, i) => (<Step key={i} n={i + 1} title={s.t} text={s.d} />))}
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function Supervision() {
-        return (
-          <section id="supervision" className="relative py-16 bg-white scroll-mt-24">
-            <Silhouettes type="city" opacity={0.08} />
-            <div className="pointer-events-none absolute inset-0 -z-10">
-              <div className="absolute inset-x-0 top-0 h-28 bg-zinc-400/20" />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-zinc-400/20" />
-            </div>
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">Авторский надзор</h2>
-              <div className="mt-6 grid lg:grid-cols-2 gap-6 items-start">
-                <Card title="Формат" right="30 000 ₽/мес.">
-                  <ul className="grid gap-2 text-sm text-zinc-700">
-                    <li>Два выезда в неделю (до 2 часов), будни 9:00–18:00</li>
-                    <li>Приёмка заказных позиций, ответы подрядчикам</li>
-                    <li>Неиспользованные выезды/часы не переносятся</li>
-                    <li>Если объект вне Улан-Удэ — веду надзор удалённо (видеоотчёты бригад)</li>
-                  </ul>
-                </Card>
-                <Card title="Что входит">
-                  <ul className="grid gap-2 text_sm text-zinc-700">
-                    <li>Контроль соответствия работ проектной документации</li>
-                    <li>Корректировки в рабочих чертежах при необходимости</li>
-                    <li>Взаимодействие с поставщиками и подрядчиками</li>
-                  </ul>
-                </Card>
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function FAQ() {
-        const qa = [
-          { q: "Можно ли работать дистанционно?", a: "Да. Провожу осмотр по видеосвязи/записи, обмеры организуем через местных специалистов; затраты на замеры вычту из стоимости проекта. Надзор — удалённо по видеоотчётам." },
-          { q: "В какие часы Вы на связи?", a: "Будни 9:00–18:00 (по договорённости — на связи в выходные). Встречи на объекте или на нейтральной территории (кафе/ресторан)." },
-          { q: "Если вопрос вне моей тематики?", a: "Тактично уточню запрос. Если он не про услуги/чертежи, честно сообщу и предложу релевантное решение." },
-          { q: "Нужно только узаконивание перепланировки", a: "Рекомендую партнёров: АКБ «Азимут», Алексей Убонов, 8-924-554-94-36." },
-        ];
-        return (
-          <section id="faq" className="relative py-16 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 scroll-mt-24">
-            <Silhouettes type="blueprint" opacity={0.10} />
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">FAQ</h2>
-              <div className="mt-6 grid gap-4">
-                {qa.map((x, i) => (
-                  <details key={i} className="group rounded-2xl border bg-white p-4">
-                    <summary className="cursor-pointer list-none flex items-center justify_between">
-                      <span className="font-medium">{x.q}</span>
-                      <span className="text-zinc-400 group-open:rotate-45 transition">＋</span>
-                    </summary>
-                    <div className="mt-2 text-sm text-zinc-700">{x.a}</div>
-                  </details>
-                ))}
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function Contacts() {
-        return (
-          <section id="contacts" className="relative py-16 bg-white scroll-mt-24">
-            <Silhouettes type="city" opacity={0.08} />
-            <div className="pointer-events-none absolute inset-0 -z-10">
-              <div className="absolute inset-x-0 top-0 h-28 bg-zinc-400/20" />
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-zinc-400/20" />
-            </div>
-            <Container>
-              <h2 className="text-2xl sm:text-3xl font-semibold">Контакты</h2>
-              <div className="mt-6 grid lg:grid-cols-2 gap-6">
-                <div className="rounded-3xl border bg-white p-6">
-                  <div className="text-sm text-zinc-600">Исполнитель работ</div>
-                  <div className="mt-1 text-lg font-medium">Любовь Очирова</div>
-                  <div className="mt-2 text-sm">Республика Бурятия, г. Улан-Удэ, пр-кт Строителей, 40</div>
-                  <div className="mt-2 text-sm">Тел.: <a className="underline" href="tel:891499855100">8-914-9-855-100</a></div>
-                  <div className="mt-4 text-sm text-zinc-600">Работаю с физ. и юр. лицами. Счета, договоры, акты.</div>
-                  <div className="mt-4 flex gap-3">
-                    <a href="#top" className="rounded-2xl bg-zinc-900 text-white px-4 py-2 text-sm">Получить расчёт</a>
-                    <a href="#pricing" className="rounded-2xl border px-4 py-2 text-sm">Прайс</a>
-                  </div>
-                </div>
-                <div className="rounded-3xl border bg_white p-6">
-                  <div className="text-sm text-zinc-600">Формат работы</div>
-                  <ul className="mt-2 text-sm text-zinc-700 grid gap-2">
-                    <li>Онлайн/офлайн; выезды в пределах Улан-Удэ и ближайших районов</li>
-                    <li>После обмеров/расчёта — предоплата 70%, далее старт работ</li>
-                    <li>Часы работы: будни 9:00–18:00</li>
-                  </ul>
-                </div>
-              </div>
-            </Container>
-          </section>
-        );
-      }
-
-      function Footer() {
-        return (
-          <footer className="border-t py-10 bg-gradient-to-b from-zinc-50 to-white">
-            <Container className="text-sm text-zinc-500 grid md:grid-cols-2 gap-4 items-center">
-              <div>© {new Date().getFullYear()} Любовь Очирова — проектировщик. Все права защищены.</div>
-              <div className="justify-self-end flex gap-4">
-                <a href="#faq" className="hover:text-zinc-700">FAQ</a>
-                <a href="#contacts" className="hover:text-zinc-700">Контакты</a>
-              </div>
-            </Container>
-          </footer>
-        );
-      }
-
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<LandingLyubov />);
-    </script>
-  </body>
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
 </html>

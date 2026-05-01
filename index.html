@@ -37,15 +37,28 @@
     const WEBHOOK_CHAT = 'https://masterplan03.ru/webhook/masterplan03';
 
     /* ── Данные шаблонов ───────────────────────────────────────────────── */
-    // Добавляйте/редактируйте шаблоны здесь
+    // Фото: положите файлы в папку images/<id>/ репозитория GitHub
+    // Пример: images/1/photo1.jpg, images/1/plan.jpg
     const TEMPLATES = [
-      { id: 1, title: 'Студия', area: 28, style: 'Минимализм', price: 12000 },
-      { id: 2, title: '1-комнатная квартира', area: 42, style: 'Скандинавский', price: 18000 },
-      { id: 3, title: '2-комнатная квартира', area: 58, style: 'Современный', price: 22000 },
-      { id: 4, title: '3-комнатная квартира', area: 82, style: 'Неоклассика', price: 28000 },
-      { id: 5, title: 'Частный дом (1 этаж)', area: 95, style: 'Современный', price: 35000 },
-      { id: 6, title: 'Кухня-гостиная', area: 24, style: 'Лофт', price: 9500 },
+      {
+        id: 1,
+        title: 'Студия',
+        area: 28,
+        style: 'Минимализм',
+        price: 12000,
+        description: 'Компактная и функциональная студия 28 м² в стиле минимализм. Грамотное зонирование позволяет разместить спальную зону, рабочее место, полноценную кухню и ванную комнату. Всё пространство продумано до мелочей — без лишних деталей, с акцентом на свет и воздух.',
+        photos: ['images/1/photo1.jpg', 'images/1/photo2.jpg', 'images/1/photo3.jpg'],
+        blueprints: ['images/1/plan.jpg', 'images/1/electric.jpg'],
+        includes: ['Обмерный план', 'Демонтаж / монтаж перегородок', 'Расстановка мебели с размерами', 'Электрика: розетки, выключатели, высоты', 'План освещения с привязками', 'Plan напольных покрытий', '3D-вид и развёртки'],
+      },
+      { id: 2, title: '1-комнатная квартира', area: 42, style: 'Скандинавский', price: 18000, photos: [], blueprints: [], description: '', includes: [] },
+      { id: 3, title: '2-комнатная квартира', area: 58, style: 'Современный', price: 22000, photos: [], blueprints: [], description: '', includes: [] },
+      { id: 4, title: '3-комнатная квартира', area: 82, style: 'Неоклассика', price: 28000, photos: [], blueprints: [], description: '', includes: [] },
+      { id: 5, title: 'Частный дом (1 этаж)', area: 95, style: 'Современный', price: 35000, photos: [], blueprints: [], description: '', includes: [] },
+      { id: 6, title: 'Кухня-гостиная', area: 24, style: 'Лофт', price: 9500, photos: [], blueprints: [], description: '', includes: [] },
     ];
+
+    const DEFAULT_INCLUDES = ['Обмерный план', 'Расстановка мебели с размерами', 'Электрика', 'Освещение', '3D-вид и развёртки'];
 
     /* ── Утилиты ───────────────────────────────────────────────────────── */
     function pretty(n) {
@@ -441,7 +454,8 @@
 
     /* ── Template Shop ─────────────────────────────────────────────────── */
     function TemplateShop() {
-      const [selected, setSelected] = useState(null);
+      const [viewing, setViewing] = useState(null);
+      const [ordering, setOrdering] = useState(null);
       return (
         <section id="templates" className="relative py-16 bg-zinc-50 scroll-mt-20">
           <Container>
@@ -450,21 +464,38 @@
             </SectionTitle>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {TEMPLATES.map(t => (
-                <TemplateCard key={t.id} template={t} onOrder={() => setSelected(t)} />
+                <TemplateCard
+                  key={t.id}
+                  template={t}
+                  onView={() => setViewing(t)}
+                  onOrder={() => setOrdering(t)}
+                />
               ))}
             </div>
           </Container>
-          {selected && <OrderModal template={selected} onClose={() => setSelected(null)} />}
+          {viewing && (
+            <ProjectModal
+              template={viewing}
+              onClose={() => setViewing(null)}
+              onOrder={() => { setViewing(null); setOrdering(viewing); }}
+            />
+          )}
+          {ordering && <OrderModal template={ordering} onClose={() => setOrdering(null)} />}
         </section>
       );
     }
 
-    function TemplateCard({ template, onOrder }) {
-      const { title, area, style, price } = template;
+    function TemplateCard({ template, onView, onOrder }) {
+      const { title, area, style, price, photos } = template;
+      const cover = photos && photos.length > 0 ? photos[0] : null;
       return (
-        <div className="rounded-3xl border bg-white shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md flex flex-col">
-          {/* ФОТО ШАБЛОНА: замените PhotoPh на <img src="..." className="h-44 w-full object-cover" /> */}
-          <PhotoPh className="h-44 w-full shrink-0" label="Рендер / чертёж" />
+        <div className="rounded-3xl border border-zinc-300 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex flex-col">
+          <button onClick={onView} className="block h-44 w-full shrink-0 text-left">
+            {cover
+              ? <img src={cover} alt={title} className="h-44 w-full object-cover" />
+              : <PhotoPh className="h-44 w-full rounded-none" label="Рендер / чертёж" />
+            }
+          </button>
           <div className="p-5 flex flex-col flex-1">
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <h3 className="font-semibold text-zinc-900 text-base">{title}</h3>
@@ -476,13 +507,159 @@
                 <div className="text-xl font-semibold text-zinc-900">{pretty(price)} ₽</div>
                 <div className="text-xs text-zinc-500 mt-0.5">шаблон с корректировками</div>
               </div>
+              <div className="flex gap-2">
+                <button onClick={onView} className="rounded-2xl border border-zinc-300 px-3 py-2 text-sm font-semibold hover:border-zinc-500 transition-colors">
+                  Подробнее
+                </button>
+                <button onClick={onOrder} className="rounded-2xl bg-zinc-900 text-white px-3 py-2 text-sm font-semibold hover:bg-zinc-800 transition-colors shrink-0">
+                  Заказать
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Project Modal ─────────────────────────────────────────────────── */
+    function ProjectModal({ template, onClose, onOrder }) {
+      const [activePhoto, setActivePhoto] = useState(0);
+      const { title, area, style, price, photos = [], blueprints = [], description, includes = [] } = template;
+      const displayIncludes = includes.length > 0 ? includes : DEFAULT_INCLUDES;
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+          onClick={e => e.target === e.currentTarget && onClose()}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-6 relative">
+            <button onClick={onClose} className="absolute top-4 right-4 z-10 size-8 grid place-items-center rounded-full bg-white/90 hover:bg-zinc-100 text-zinc-500 shadow-sm">✕</button>
+
+            {/* Галерея фото */}
+            <div className="p-5 pb-0">
+              <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-100 mb-3">
+                {photos.length > 0
+                  ? <img src={photos[activePhoto]} alt={title} className="w-full h-full object-cover" />
+                  : <PhotoPh className="w-full h-full rounded-none" label="Фото проекта" />
+                }
+              </div>
+              {photos.length > 1 && (
+                <div className="flex gap-2">
+                  {photos.map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActivePhoto(i)}
+                      className={`flex-1 aspect-video rounded-xl overflow-hidden border-2 transition-colors ${activePhoto === i ? 'border-zinc-900' : 'border-zinc-200 hover:border-zinc-400'}`}
+                    >
+                      <img src={p} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {photos.length === 0 && (
+                <div className="flex gap-2">
+                  {[0,1,2].map(i => <PhotoPh key={i} className="flex-1 aspect-video rounded-xl" label="Фото" />)}
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 grid gap-5">
+              {/* Заголовок */}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-semibold text-zinc-900">{title}</h3>
+                  <div className="text-sm text-zinc-500 mt-1">{area} м² · {style}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-2xl font-semibold text-zinc-900">{pretty(price)} ₽</div>
+                  <div className="text-xs text-zinc-500 mt-0.5">шаблон с корректировками</div>
+                </div>
+              </div>
+
+              {/* Описание */}
+              {description && (
+                <div>
+                  <h4 className="font-semibold text-zinc-900 mb-2">О проекте</h4>
+                  <p className="text-base text-zinc-700 leading-relaxed">{description}</p>
+                </div>
+              )}
+
+              {/* Чертежи */}
+              <div>
+                <h4 className="font-semibold text-zinc-900 mb-3">Чертежи</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {blueprints.length > 0
+                    ? blueprints.map((b, i) => (
+                        <div key={i} className="aspect-[4/3] rounded-2xl overflow-hidden border border-zinc-200">
+                          <img src={b} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ))
+                    : [0,1].map(i => <PhotoPh key={i} className="aspect-[4/3] rounded-2xl" label="Чертёж" />)
+                  }
+                </div>
+              </div>
+
+              {/* Состав шаблона */}
+              <div>
+                <h4 className="font-semibold text-zinc-900 mb-3">Что входит в шаблон</h4>
+                <ul className="grid gap-2">
+                  {displayIncludes.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-base text-zinc-700">
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-zinc-900"></span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
               <button
                 onClick={onOrder}
-                className="rounded-2xl bg-zinc-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-zinc-800 transition-colors shrink-0"
+                className="rounded-2xl bg-zinc-900 text-white px-5 py-3 text-sm font-semibold hover:bg-zinc-800 transition-colors"
               >
-                Заказать
+                Заказать шаблон — {pretty(price)} ₽
               </button>
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Privacy Modal ─────────────────────────────────────────────────── */
+    function PrivacyModal({ onClose }) {
+      return (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={e => e.target === e.currentTarget && onClose()}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-6 p-6 relative">
+            <button onClick={onClose} className="absolute top-4 right-4 size-8 grid place-items-center rounded-full hover:bg-zinc-100 text-zinc-500">✕</button>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-1">Согласие на обработку персональных данных</h2>
+            {/* ── ШАПКА (заполните данные организации) ── */}
+            <div className="mt-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-200 text-sm text-zinc-700 grid gap-1">
+              <div><span className="text-zinc-500">Организация:</span> <strong>_______________________</strong></div>
+              <div><span className="text-zinc-500">ИНН / ОГРН:</span> <strong>_______________________</strong></div>
+              <div><span className="text-zinc-500">Адрес:</span> <strong>_______________________</strong></div>
+              <div><span className="text-zinc-500">E-mail:</span> <strong>_______________________</strong></div>
+            </div>
+            <div className="mt-5 grid gap-4 text-sm text-zinc-700 leading-relaxed">
+              <p>Настоящим я, субъект персональных данных, в соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных», свободно, своей волей и в своём интересе даю согласие на обработку моих персональных данных.</p>
+              <div>
+                <p className="font-semibold text-zinc-900 mb-2">Перечень персональных данных:</p>
+                <ul className="grid gap-1 pl-4">
+                  {['Фамилия, имя, отчество', 'Номер телефона', 'Адрес электронной почты (при указании)'].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400"></span>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-900 mb-2">Цели обработки:</p>
+                <ul className="grid gap-1 pl-4">
+                  {['Обработка и ответ на обращения и заявки', 'Предоставление информации об услугах', 'Заключение и исполнение договора'].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-zinc-400"></span>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <p>Обработка персональных данных осуществляется следующими способами: сбор, запись, систематизация, накопление, хранение, уточнение, использование, передача (при необходимости), обезличивание, блокирование, удаление, уничтожение.</p>
+              <p>Согласие действует до момента его отзыва. Отозвать согласие можно, направив письменное заявление на указанный e-mail.</p>
+            </div>
+            <button onClick={onClose} className="mt-6 rounded-2xl bg-zinc-900 text-white px-5 py-2.5 text-sm font-semibold">Закрыть</button>
           </div>
         </div>
       );
@@ -493,6 +670,8 @@
       const [name, setName] = useState('');
       const [phone, setPhone] = useState('');
       const [comment, setComment] = useState('');
+      const [consent, setConsent] = useState(false);
+      const [privacyOpen, setPrivacyOpen] = useState(false);
       const [status, setStatus] = useState('idle');
 
       async function handleSubmit(e) {
@@ -514,10 +693,12 @@
       }
 
       return (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          onClick={e => e.target === e.currentTarget && onClose()}
-        >
+        <>
+          {privacyOpen && <PrivacyModal onClose={() => setPrivacyOpen(false)} />}
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={e => e.target === e.currentTarget && onClose()}
+          >
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 relative">
             <button onClick={onClose} className="absolute top-4 right-4 size-8 grid place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 text-lg">✕</button>
             <h3 className="text-lg font-semibold text-zinc-900 mb-1">Заказать шаблон</h3>
@@ -545,6 +726,22 @@
                     className="rounded-xl border border-zinc-200 px-3 py-2.5 text-base resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   />
                 </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={consent}
+                    onChange={e => setConsent(e.target.checked)}
+                    className="mt-0.5 size-4 shrink-0 rounded border-zinc-300 accent-zinc-900"
+                  />
+                  <span className="text-sm text-zinc-600 leading-snug">
+                    Предоставляю{' '}
+                    <button type="button" onClick={() => setPrivacyOpen(true)} className="underline text-zinc-900 hover:text-zinc-600 transition-colors">
+                      согласие на обработку персональных данных
+                    </button>{' '}
+                    в соответствии с политикой конфиденциальности
+                  </span>
+                </label>
                 {status === 'error' && (
                   <p className="text-sm text-red-600">Ошибка отправки. Пожалуйста, позвоните напрямую: <a href="tel:89149855100" className="underline">8-914-9-855-100</a></p>
                 )}
@@ -558,7 +755,8 @@
               </form>
             )}
           </div>
-        </div>
+          </div>
+        </>
       );
     }
 
